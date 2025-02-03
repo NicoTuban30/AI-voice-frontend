@@ -13,7 +13,7 @@ const GenerateStory = () => {
   return (
     <>
       <div style={{ backgroundColor: 'rgb(241 241 241)', padding: '20px', margin: '20px' }}>
-        <div style={{ margin: '20px' }}><a href="http://localhost:4000/">Back</a></div>
+        <div style={{ margin: '20px' }}><a href="http://localhost:3000/">Back</a></div>
         <p style={{marginLeft: '20px'}}> Story</p>
         <p style={{marginLeft: '20px'}}>{parsedData.story}</p>
       </div>
