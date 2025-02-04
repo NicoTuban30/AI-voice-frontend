@@ -1,13 +1,18 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  frontend:
+  nextjs-app:
     build: .
-    container_name: ai-voice-frontend
     ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - "3000:3000"   # Maps container port 3000 to host port 3000
     volumes:
-      - .:/app
-    command: pnpm dev
+      - .:/app         # Maps local code to container
+    environment:
+      - NODE_ENV=production
+    user: "appuser"     # Ensures the container runs as the non-root user
+    networks:
+      - nextjs-network
+
+networks:
+  nextjs-network:
+    driver: bridge

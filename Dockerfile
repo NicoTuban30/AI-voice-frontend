@@ -1,20 +1,30 @@
-# Use an official Node.js runtime as the base image
+# Use official Node.js image as the base image
 FROM node:16-alpine
 
-# Set the working directory inside the container
+# Create a non-root user with a specific UID
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and pnpm-lock.yaml for dependency installation
-COPY package.json pnpm-lock.yaml ./
+# Install dependencies
+COPY package.json package-lock.json ./
+RUN npm install --frozen-lockfile
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install
-
-# Copy the rest of the application files
+# Copy the rest of the application code
 COPY . .
 
-# Expose the port the app runs on
+# Build the Next.js app
+RUN npm run build
+
+# Change ownership of the app directory to the non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to the non-root user
+USER appuser
+
+# Expose the port the app will run on
 EXPOSE 3000
 
-# Command to run the app
-CMD ["pnpm", "dev"]
+# Start the application in production mode
+CMD ["npm", "start"]
