@@ -1,18 +1,66 @@
 version: "3.8"
 
+networks:
+  app-network:
+    external: true  # Use an existing network
+
 services:
-  nextjs-app:
-    build: .
+  frontend:
+    container_name: frontend
+    restart: always
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"   # Maps container port 3000 to host port 3000
-    volumes:
-      - .:/app         # Maps local code to container
+      - "3000:3000"
     environment:
       - NODE_ENV=production
-    user: "appuser"     # Ensures the container runs as the non-root user
+    env_file:
+      - ./Frontend/.env.production.local
+    volumes:
+      - ./Frontend:/app:z
+      - /app/node_modules  # Prevents host-container conflicts
     networks:
-      - nextjs-network
+      - app-network
+    depends_on:
+      - backend
 
-networks:
-  nextjs-network:
-    driver: bridge
+
+  backend:
+    build:
+      context: ./Backend
+    container_name: backend
+    restart: always
+    user: "1000:1000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Backend:/app
+      - app_data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://myuser:mypassword@db:5432/mydatabase
+    command: ["python", "agent.py", "start"]
+    networks:
+      - app-network
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  pgdata:
+  app_data:

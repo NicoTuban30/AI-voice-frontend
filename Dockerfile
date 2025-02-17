@@ -1,36 +1,28 @@
-# Use a Node.js version >= 18 as the base image
-FROM node:18-alpine
-
-# Create a non-root user with a specific UID
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+FROM node:18
 
 # Set working directory
 WORKDIR /app
 
+# Ensure correct permissions
+RUN chown -R node:node /app
+
+# Switch to non-root user
+USER node
+
+# Copy package.json and yarn.lock first (for caching dependencies)
+COPY --chown=node:node package.json yarn.lock ./
+
 # Install dependencies
-COPY package.json package-lock.json ./ 
-RUN npm install --frozen-lockfile
+RUN yarn install --frozen-lockfile
 
-# Check that `next` is installed properly
-RUN npm list next
+# Copy the rest of the application files
+COPY --chown=node:node . .
 
-# Ensure `next` is available in the PATH
-ENV PATH ./node_modules/.bin:$PATH
-
-# Copy the rest of the application code
-COPY . .
-
-# Build the Next.js app
-RUN npm run build
-
-# Change ownership of the app directory to the non-root user
-RUN chown -R appuser:appgroup /app
-
-# Switch to the non-root user
-USER appuser
+# Build the application
+RUN yarn build
 
 # Expose the port the app will run on
 EXPOSE 3000
 
-# Start the application in production mode
-CMD ["npm", "start"]
+# Start the application in producti
+CMD ["yarn", "start"]

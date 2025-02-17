@@ -1,28 +1,25 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { CloseIcon } from "@/components/CloseIcon";
+import { NoAgentNotification } from "@/components/NoAgentNotification";
+import Visualizer from "@/components/Visualizer";
 import {
-  LiveKitRoom,
-  useVoiceAssistant,
-  BarVisualizer,
-  RoomAudioRenderer,
-  VoiceAssistantControlBar,
   AgentState,
   DisconnectButton,
+  LiveKitRoom,
+  RoomAudioRenderer,
   TrackReference,
-  useTrackTranscription,
   TrackReferenceOrPlaceholder,
-  useLocalParticipant,
+  VoiceAssistantControlBar,
   useChat,
+  useLocalParticipant,
+  useTrackTranscription,
+  useVoiceAssistant,
 } from "@livekit/components-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { LocalParticipant, MediaDeviceFailure, Participant, Track, TranscriptionSegment } from "livekit-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ConnectionDetails } from "./api/connection-details/route";
-import { NoAgentNotification } from "@/components/NoAgentNotification";
-import { CloseIcon } from "@/components/CloseIcon";
-import { useKrispNoiseFilter } from "@livekit/components-react/krisp";
-import Visualizer from "@/components/Visualizer";
-import { useRouter } from "next/navigation";
 
 export type ChatMessageType = {
   name: string;
@@ -118,54 +115,13 @@ function ControlBar(props: {
   roomTranscript: ChatMessageType[];
   setIsAnimating: (isAnimating: boolean) => void;
 }) {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter()
-
-  const generateStory = useCallback(async (roomTranscript: ChatMessageType[]) => {
-    setLoading(true);
-    try {
-      const currentDate = new Date();
-      const formattedDate = currentDate.toISOString().split('.')[0];
-      const response = await fetch('http://localhost:8000/generate_story/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          "userRoomId": "room123",
-          "chapterId": 1,
-          "transcript": JSON.stringify(roomTranscript),
-          "accountId": 42,
-          "timestamp": formattedDate
-        }),
-      });
-
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const result = await response.json();
-      console.log(result);  // Log the detailed error message returned from FastAPI
-
-      // store in local storage
-      localStorage.setItem('storyDetails', JSON.stringify(result));
-      setLoading(false);
-
-      router.push('/generate-story');
-
-
-      // Handle the story as needed
-    } catch (error) {
-      console.error('Error generating story:', error);
-      setLoading(false);
-    }
-  }, []);
+  const BACKEND_API = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const storeTranscript = useCallback(async (roomTranscript: ChatMessageType[]) => {
     try {
       const currentDate = new Date();
       const formattedDate = currentDate.toISOString().split('.')[0];
-      const response = await fetch('http://localhost:8000/transcript/', {
+      const response = await fetch(`${BACKEND_API}/transcript/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,7 +143,6 @@ function ControlBar(props: {
       // Handle the story as needed
     } catch (error) {
       console.error('Error generating story:', error);
-      setLoading(false);
     }
   }, []);
 
@@ -201,10 +156,10 @@ function ControlBar(props: {
    * Use Krisp background noise reduction when available.
    * Note: This is only available on Scale plan, see {@link https://livekit.io/pricing | LiveKit Pricing} for more details.
    */
-  const krisp = useKrispNoiseFilter();
-  useEffect(() => {
-    krisp.setNoiseFilterEnabled(true);
-  }, []);
+  // const krisp = useKrispNoiseFilter();
+  // useEffect(() => {
+  //   krisp.setNoiseFilterEnabled(true);
+  // }, []);
 
   return (
     <div className="relative h-[100px]">
@@ -357,30 +312,35 @@ function TranscriptionTile({
     new Map()
   );
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
-  const { chatMessages, send: sendChat } = useChat();
+  const { chatMessages } = useChat();
 
   // store transcripts
   useEffect(() => {
-    agentMessages.segments.forEach((s) =>
-      transcripts.set(
-        s.id,
-        segmentToChatMessage(
-          s,
-          transcripts.get(s.id),
-          agentAudioTrack.participant
+    setTranscripts(() => {
+      const newTranscripts = new Map(transcripts);
+      agentMessages.segments.forEach((s) =>
+        newTranscripts.set(
+          s.id,
+          segmentToChatMessage(
+            s,
+            transcripts.get(s.id),
+            agentAudioTrack.participant
+          )
         )
-      )
-    );
-    localMessages.segments.forEach((s) =>
-      transcripts.set(
-        s.id,
-        segmentToChatMessage(
-          s,
-          transcripts.get(s.id),
-          localParticipant.localParticipant
+      );
+
+      localMessages.segments.forEach((s) =>
+        newTranscripts.set(
+          s.id,
+          segmentToChatMessage(
+            s,
+            transcripts.get(s.id),
+            localParticipant.localParticipant
+          )
         )
-      )
-    );
+      );
+      return newTranscripts;
+    })
 
     const allMessages = Array.from(transcripts.values());
 
@@ -423,10 +383,10 @@ function TranscriptionTile({
   }, [messages, setRoomTranscript]);
   const styles = {
     container: {
-      position: 'relative' as 'relative',
+      position: 'relative' as const,
       height: '200px',
       color: 'black',
-      overflow: 'scroll' as 'scroll',
+      overflow: 'scroll' as const,
       backgroundColor: 'rgb(241 241 241)',
       padding: '10px',
     },
